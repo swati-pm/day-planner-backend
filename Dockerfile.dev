@@ -1,0 +1,33 @@
+# Development Dockerfile with hot reload
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S dayplanner -u 1001
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Create data directory for SQLite database
+RUN mkdir -p /app/data && chown -R dayplanner:nodejs /app/data
+
+# Change ownership of the app directory
+RUN chown -R dayplanner:nodejs /app
+
+# Switch to non-root user
+USER dayplanner
+
+# Expose the port
+EXPOSE 3001
+
+# Start the development server with hot reload
+CMD ["npm", "run", "dev"]

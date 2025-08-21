@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  day-planner-backend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: day-planner-api-dev
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=development
+      # Local file database (default)
+      - LIBSQL_URL=libsql://01K35G8DEW004RCPV7A446R4N2-day-planner-db1.lite.bunnydb.net/
+      - LIBSQL_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9.eyJwIjp7InJvIjpudWxsLCJydyI6eyJucyI6WyJkYXktcGxhbm5lci1kYjEiXSwidGFncyI6bnVsbH0sInJvYSI6bnVsbCwicndhIjpudWxsLCJkZGwiOm51bGx9LCJpYXQiOjE3NTU3NTI3NTJ9.HSgQRv78eHxnO7sHHLt68HzvvpMlLqNM_KNc2ky2hMACnsGFXDaQ8bmflZqb0dfEw437d_crVlPW0VW5sFwMCg
+      # For remote Turso database, replace with:
+      # - LIBSQL_URL=libsql://your-database-url.turso.io
+      # - LIBSQL_AUTH_TOKEN=your-auth-token
+    volumes:
+      # Mount source code for hot reload
+      - ./src:/app/src
+      - ./tsconfig.json:/app/tsconfig.json
+      # Persist local libSQL database (when using file:// URL)
+      - ./data:/app/data
+      # Use named volume for node_modules to avoid conflicts
+      - node_modules_volume:/app/node_modules
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http = require('http'); const options = { hostname: 'localhost', port: process.env.PORT || 3001, path: '/api/health', timeout: 2000 }; const req = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => { process.exit(1); }); req.end();"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - day-planner-network-dev
+
+volumes:
+  node_modules_volume:
+
+networks:
+  day-planner-network-dev:
+    driver: bridge
