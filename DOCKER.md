@@ -168,6 +168,64 @@ The application includes a health check endpoint at `/api/health` that is automa
 - Only production dependencies in final image
 - Security headers via Helmet middleware
 
+## Cross-Platform Deployment
+
+### Building for bunny.net Magic Containers
+
+If you're deploying to bunny.net's Magic Containers or other services that require `linux/amd64` platform, use these commands:
+
+**Option 1: Using NPM Scripts (Recommended)**
+```bash
+# Build image for AMD64 platform
+npm run docker:build:deploy
+
+# Tag for deployment (replace with your registry/image name)
+docker tag day-planner-backend:deploy your-registry/day-planner-backend:latest
+
+# Push to your container registry
+docker push your-registry/day-planner-backend:latest
+```
+
+**Option 2: Using Docker Buildx**
+```bash
+# Build using buildx for cross-platform support
+npm run docker:buildx:deploy
+
+# Or manually:
+docker buildx build --platform linux/amd64 --load -t day-planner-backend:deploy .
+```
+
+**Option 3: Direct Docker Build**
+```bash
+# Build directly with platform specification
+docker build --platform linux/amd64 -t day-planner-backend:deploy .
+```
+
+### Platform-Specific Production Deployment
+
+The production `docker-compose.yml` now includes platform specification:
+
+```bash
+# Build and run with platform specification
+docker-compose up --build
+```
+
+### Environment Variables for Deployment
+
+When deploying to external services, make sure to set these environment variables:
+
+**For Local libSQL (file-based):**
+```bash
+LIBSQL_URL=file:/app/data/planner.db
+LIBSQL_AUTH_TOKEN=
+```
+
+**For Remote libSQL (Turso):**
+```bash
+LIBSQL_URL=libsql://your-database-url.turso.io
+LIBSQL_AUTH_TOKEN=your-auth-token
+```
+
 ## Troubleshooting
 
 ### Platform Issues (Apple Silicon Macs)

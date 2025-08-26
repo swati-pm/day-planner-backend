@@ -16,17 +16,18 @@ const mapRowToTask = (row: any): Task => {
   };
 };
 
-export const createTask = async (taskData: CreateTaskRequest): Promise<Task> => {
+export const createTask = async (userId: string, taskData: CreateTaskRequest): Promise<Task> => {
   const id = uuidv4();
   const now = new Date().toISOString();
   
   const query = `
-    INSERT INTO tasks (id, title, description, priority, dueDate, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tasks (id, userId, title, description, priority, dueDate, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
   
   const params = [
     id,
+    userId,
     taskData.title,
     taskData.description || null,
     taskData.priority || 'medium',
@@ -54,9 +55,9 @@ export const createTask = async (taskData: CreateTaskRequest): Promise<Task> => 
   }
 };
 
-export const findTaskById = async (id: string): Promise<Task | null> => {
-  const query = 'SELECT * FROM tasks WHERE id = ?';
-  const row = await getRow(query, [id]);
+export const findTaskById = async (id: string, userId: string): Promise<Task | null> => {
+  const query = 'SELECT * FROM tasks WHERE id = ? AND userId = ?';
+  const row = await getRow(query, [id, userId]);
   
   if (!row) {
     return null;
@@ -65,9 +66,9 @@ export const findTaskById = async (id: string): Promise<Task | null> => {
   return mapRowToTask(row);
 };
 
-export const findAllTasks = async (filters: TaskFilters = {}): Promise<Task[]> => {
-  let query = 'SELECT * FROM tasks WHERE 1=1';
-  const params: any[] = [];
+export const findAllTasks = async (userId: string, filters: TaskFilters = {}): Promise<Task[]> => {
+  let query = 'SELECT * FROM tasks WHERE userId = ?';
+  const params: any[] = [userId];
 
   // Apply filters
   if (filters.completed !== undefined) {
@@ -109,8 +110,8 @@ export const findAllTasks = async (filters: TaskFilters = {}): Promise<Task[]> =
   return rows.map(row => mapRowToTask(row));
 };
 
-export const updateTask = async (id: string, updateData: UpdateTaskRequest): Promise<Task | null> => {
-  const existingTask = await findTaskById(id);
+export const updateTask = async (id: string, userId: string, updateData: UpdateTaskRequest): Promise<Task | null> => {
+  const existingTask = await findTaskById(id, userId);
   if (!existingTask) {
     return null;
   }
@@ -151,21 +152,22 @@ export const updateTask = async (id: string, updateData: UpdateTaskRequest): Pro
   params.push(new Date().toISOString());
   params.push(id);
 
-  const query = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
+  const query = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ? AND userId = ?`;
+  params.push(userId);
   await runQuery(query, params);
 
-  return findTaskById(id);
+  return findTaskById(id, userId);
 };
 
-export const deleteTask = async (id: string): Promise<boolean> => {
-  const query = 'DELETE FROM tasks WHERE id = ?';
-  const result = await runQuery(query, [id]);
+export const deleteTask = async (id: string, userId: string): Promise<boolean> => {
+  const query = 'DELETE FROM tasks WHERE id = ? AND userId = ?';
+  const result = await runQuery(query, [id, userId]);
   return (result.changes || 0) > 0;
 };
 
-export const getTaskCount = async (filters: Omit<TaskFilters, 'page' | 'limit' | 'sortBy' | 'sortOrder'> = {}): Promise<number> => {
-  let query = 'SELECT COUNT(*) as count FROM tasks WHERE 1=1';
-  const params: any[] = [];
+export const getTaskCount = async (userId: string, filters: Omit<TaskFilters, 'page' | 'limit' | 'sortBy' | 'sortOrder'> = {}): Promise<number> => {
+  let query = 'SELECT COUNT(*) as count FROM tasks WHERE userId = ?';
+  const params: any[] = [userId];
 
   if (filters.completed !== undefined) {
     query += ' AND completed = ?';

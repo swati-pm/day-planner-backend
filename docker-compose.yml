@@ -6,6 +6,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
+      platforms:
+        - linux/amd64
+    platform: linux/amd64
     container_name: day-planner-api
     ports:
       - "3001:3001"

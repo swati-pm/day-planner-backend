@@ -32,24 +32,42 @@ export const initializeDatabase = async (): Promise<void> => {
 
     // Create tables
     const createTablesQueries = [
+      // Users table
+      `CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        googleId TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        picture TEXT,
+        verified BOOLEAN NOT NULL DEFAULT 0,
+        createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+      
       // Tasks table
       `CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
         title TEXT NOT NULL,
         description TEXT,
         completed BOOLEAN NOT NULL DEFAULT 0,
         priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
         dueDate TEXT,
         createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
       )`
     ];
 
     // Create indexes
     const createIndexesQueries = [
+      'CREATE INDEX IF NOT EXISTS idx_users_googleId ON users(googleId)',
+      'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+      'CREATE INDEX IF NOT EXISTS idx_tasks_userId ON tasks(userId)',
       'CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed)',
       'CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)',
-      'CREATE INDEX IF NOT EXISTS idx_tasks_dueDate ON tasks(dueDate)'
+      'CREATE INDEX IF NOT EXISTS idx_tasks_dueDate ON tasks(dueDate)',
+      'CREATE INDEX IF NOT EXISTS idx_tasks_user_completed ON tasks(userId, completed)'
     ];
 
     // Execute table creation queries

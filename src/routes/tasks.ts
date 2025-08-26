@@ -8,6 +8,7 @@ import {
   getTaskCount 
 } from '../models/Task';
 import { asyncHandler, createError } from '../middleware/errorHandler';
+import { authenticateToken } from '../middleware/auth';
 import { 
   validate, 
   validateQuery, 
@@ -28,14 +29,16 @@ const router = express.Router();
 
 // GET /api/tasks - Get all tasks with filtering and pagination
 router.get('/', 
+  authenticateToken,
   validateQuery(taskFiltersSchema),
   asyncHandler(async (req: express.Request, res: express.Response) => {
     const filters = req.query as TaskFilters;
     const pagination = normalizePaginationQuery(filters);
+    const userId = req.user!.id;
     
     const [tasks, total] = await Promise.all([
-      findAllTasks({ ...filters, ...pagination }),
-      getTaskCount(filters)
+      findAllTasks(userId, { ...filters, ...pagination }),
+      getTaskCount(userId, filters)
     ]);
 
     const paginatedData = createPaginatedResponse(tasks, pagination, total);
@@ -51,11 +54,13 @@ router.get('/',
 
 // GET /api/tasks/:id - Get task by ID
 router.get('/:id', 
+  authenticateToken,
   validateParams(Joi.object({ id: uuidSchema })),
   asyncHandler(async (req: express.Request, res: express.Response) => {
     const { id } = req.params;
+    const userId = req.user!.id;
     
-    const task = await findTaskById(id);
+    const task = await findTaskById(id, userId);
     if (!task) {
       throw createError('Task not found', 404);
     }
@@ -71,9 +76,11 @@ router.get('/:id',
 
 // POST /api/tasks - Create new task
 router.post('/', 
+  authenticateToken,
   validate(createTaskSchema),
   asyncHandler(async (req: express.Request, res: express.Response) => {
-    const task = await createTask(req.body);
+    const userId = req.user!.id;
+    const task = await createTask(userId, req.body);
 
     const response: ApiResponse<Task> = {
       success: true,
@@ -87,12 +94,14 @@ router.post('/',
 
 // PUT /api/tasks/:id - Update task
 router.put('/:id', 
+  authenticateToken,
   validateParams(Joi.object({ id: uuidSchema })),
   validate(updateTaskSchema),
   asyncHandler(async (req: express.Request, res: express.Response) => {
     const { id } = req.params;
+    const userId = req.user!.id;
     
-    const task = await updateTask(id, req.body);
+    const task = await updateTask(id, userId, req.body);
     if (!task) {
       throw createError('Task not found', 404);
     }
@@ -109,16 +118,18 @@ router.put('/:id',
 
 // PATCH /api/tasks/:id/toggle - Toggle task completion status
 router.patch('/:id/toggle', 
+  authenticateToken,
   validateParams(Joi.object({ id: uuidSchema })),
   asyncHandler(async (req: express.Request, res: express.Response) => {
     const { id } = req.params;
+    const userId = req.user!.id;
     
-    const existingTask = await findTaskById(id);
+    const existingTask = await findTaskById(id, userId);
     if (!existingTask) {
       throw createError('Task not found', 404);
     }
 
-    const task = await updateTask(id, { completed: !existingTask.completed });
+    const task = await updateTask(id, userId, { completed: !existingTask.completed });
 
     const response: ApiResponse<Task> = {
       success: true,
@@ -132,11 +143,13 @@ router.patch('/:id/toggle',
 
 // DELETE /api/tasks/:id - Delete task
 router.delete('/:id', 
+  authenticateToken,
   validateParams(Joi.object({ id: uuidSchema })),
   asyncHandler(async (req: express.Request, res: express.Response) => {
     const { id } = req.params;
+    const userId = req.user!.id;
     
-    const deleted = await deleteTask(id);
+    const deleted = await deleteTask(id, userId);
     if (!deleted) {
       throw createError('Task not found', 404);
     }
@@ -152,7 +165,10 @@ router.delete('/:id',
 
 // GET /api/tasks/stats/summary - Get task statistics
 router.get('/stats/summary', 
+  authenticateToken,
   asyncHandler(async (req: express.Request, res: express.Response) => {
+    const userId = req.user!.id;
+    
     const [
       total,
       completed,
@@ -160,11 +176,11 @@ router.get('/stats/summary',
       highPriority,
       overdue
     ] = await Promise.all([
-      getTaskCount(),
-      getTaskCount({ completed: true }),
-      getTaskCount({ completed: false }),
-      getTaskCount({ priority: 'high' }),
-      getTaskCount({ 
+      getTaskCount(userId),
+      getTaskCount(userId, { completed: true }),
+      getTaskCount(userId, { completed: false }),
+      getTaskCount(userId, { priority: 'high' }),
+      getTaskCount(userId, { 
         completed: false, 
         dueDateTo: new Date().toISOString() 
       })
