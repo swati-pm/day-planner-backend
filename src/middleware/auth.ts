@@ -186,3 +186,4 @@ export const authenticateGoogle = async (idToken: string): Promise<{
     throw new Error('Google authentication failed');
   }
 };
+

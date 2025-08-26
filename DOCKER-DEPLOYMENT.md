@@ -432,3 +432,4 @@ docker exec day-planner-api sqlite3 /app/data/planner.db "PRAGMA integrity_check
 ---
 
 For more information, see the [main deployment guide](../day-planner/DOCKER-DEPLOYMENT.md) for full-stack deployment instructions.
+
