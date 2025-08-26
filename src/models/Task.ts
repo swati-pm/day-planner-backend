@@ -6,6 +6,7 @@ import { calculateOffset, parseSortParams } from '../utils/pagination';
 const mapRowToTask = (row: any): Task => {
   return {
     id: row.id,
+    userId: row.userId,
     title: row.title,
     description: row.description,
     completed: Boolean(row.completed),
@@ -42,6 +43,7 @@ export const createTask = async (userId: string, taskData: CreateTaskRequest): P
     // Return the task object directly instead of querying again
     return {
       id,
+      userId,
       title: taskData.title,
       description: taskData.description,
       completed: false,

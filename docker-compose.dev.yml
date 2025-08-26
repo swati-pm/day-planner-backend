@@ -11,10 +11,17 @@ services:
     environment:
       - PORT=3001
       - NODE_ENV=development
-      # Local file database (default)
+      # Database configuration
       - LIBSQL_URL=libsql://01K35G8DEW004RCPV7A446R4N2-day-planner-db1.lite.bunnydb.net/
       - LIBSQL_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9.eyJwIjp7InJvIjpudWxsLCJydyI6eyJucyI6WyJkYXktcGxhbm5lci1kYjEiXSwidGFncyI6bnVsbH0sInJvYSI6bnVsbCwicndhIjpudWxsLCJkZGwiOm51bGx9LCJpYXQiOjE3NTU3NTI3NTJ9.HSgQRv78eHxnO7sHHLt68HzvvpMlLqNM_KNc2ky2hMACnsGFXDaQ8bmflZqb0dfEw437d_crVlPW0VW5sFwMCg
-      # For remote Turso database, replace with:
+      # JWT Configuration
+      - JWT_SECRET=your-jwt-secret-key-for-development-change-in-production
+      - JWT_EXPIRES_IN=7d
+      # Google OAuth Configuration
+      - GOOGLE_CLIENT_ID=your-google-client-id
+      # Frontend URL for CORS
+      - FRONTEND_URL=http://localhost:5173
+      # For remote database configuration:
       # - LIBSQL_URL=libsql://your-database-url.turso.io
       # - LIBSQL_AUTH_TOKEN=your-auth-token
     volumes:

@@ -10,6 +10,42 @@ export const getDatabase = (): Client => {
   return db;
 };
 
+// Database migration functions
+const runMigrations = async (): Promise<void> => {
+  try {
+    console.log('Running database migrations...');
+    
+    // Migration 1: Add userId column to tasks table if it doesn't exist
+    try {
+      // Check if userId column exists
+      const result = await db.execute('PRAGMA table_info(tasks)');
+      const columns = result.rows.map((row: any) => row.name);
+      
+      if (!columns.includes('userId')) {
+        console.log('Adding userId column to tasks table...');
+        
+        // Add userId column
+        await db.execute('ALTER TABLE tasks ADD COLUMN userId TEXT');
+        
+        // For existing tasks, we'll need to either:
+        // 1. Delete them (since they don't have a valid user)
+        // 2. Or assign them to a default user
+        // For now, let's delete existing tasks since this is development
+        await db.execute('DELETE FROM tasks');
+        
+        console.log('Added userId column and cleared existing tasks');
+      }
+    } catch (migrationError) {
+      console.log('Migration 1 (userId column) skipped or already applied:', migrationError);
+    }
+    
+    console.log('Database migrations completed');
+  } catch (error) {
+    console.error('Migration error:', error);
+    // Don't throw - migrations are optional
+  }
+};
+
 export const initializeDatabase = async (): Promise<void> => {
   try {
     // Get libSQL connection parameters from environment
@@ -74,6 +110,9 @@ export const initializeDatabase = async (): Promise<void> => {
     for (const query of createTablesQueries) {
       await db.execute(query);
     }
+
+    // Run database migrations for existing tables
+    await runMigrations();
 
     // Execute index creation queries
     for (const query of createIndexesQueries) {

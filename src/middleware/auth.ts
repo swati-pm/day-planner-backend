@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { OAuth2Client } from 'google-auth-library';
-import jwt from 'jsonwebtoken';
-import { findUserById, findOrCreateUserByGoogle, User } from '../models/User';
+import { sign, verify, SignOptions } from 'jsonwebtoken';
+import { findUserById, findOrCreateUserByGoogle } from '../models/User';
+import { User } from '../types';
 
 // Extend the Request interface to include user
 declare global {
@@ -30,9 +31,16 @@ export const generateToken = (user: User): string => {
     email: user.email
   };
   
-  return jwt.sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
-  });
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  
+  const options: SignOptions = {
+    expiresIn: 60 * 60 * 24 * 7  // 7 days in seconds
+  };
+  
+  return sign(payload, secret, options);
 };
 
 /**
@@ -40,7 +48,11 @@ export const generateToken = (user: User): string => {
  */
 export const verifyToken = (token: string): JWTPayload => {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT_SECRET environment variable is required');
+    }
+    return verify(token, secret) as JWTPayload;
   } catch (error) {
     throw new Error('Invalid token');
   }
