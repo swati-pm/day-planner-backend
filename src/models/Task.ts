@@ -6,7 +6,6 @@ import { calculateOffset, parseSortParams } from '../utils/pagination';
 const mapRowToTask = (row: any): Task => {
   return {
     id: row.id,
-    userId: row.userId,
     title: row.title,
     description: row.description,
     completed: Boolean(row.completed),
@@ -17,18 +16,17 @@ const mapRowToTask = (row: any): Task => {
   };
 };
 
-export const createTask = async (userId: string, taskData: CreateTaskRequest): Promise<Task> => {
+export const createTask = async (taskData: CreateTaskRequest): Promise<Task> => {
   const id = uuidv4();
   const now = new Date().toISOString();
   
   const query = `
-    INSERT INTO tasks (id, userId, title, description, priority, dueDate, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tasks (id, title, description, priority, dueDate, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
   
   const params = [
     id,
-    userId,
     taskData.title,
     taskData.description || null,
     taskData.priority || 'medium',
@@ -43,7 +41,6 @@ export const createTask = async (userId: string, taskData: CreateTaskRequest): P
     // Return the task object directly instead of querying again
     return {
       id,
-      userId,
       title: taskData.title,
       description: taskData.description,
       completed: false,
@@ -57,9 +54,9 @@ export const createTask = async (userId: string, taskData: CreateTaskRequest): P
   }
 };
 
-export const findTaskById = async (id: string, userId: string): Promise<Task | null> => {
-  const query = 'SELECT * FROM tasks WHERE id = ? AND userId = ?';
-  const row = await getRow(query, [id, userId]);
+export const findTaskById = async (id: string): Promise<Task | null> => {
+  const query = 'SELECT * FROM tasks WHERE id = ?';
+  const row = await getRow(query, [id]);
   
   if (!row) {
     return null;
@@ -68,9 +65,9 @@ export const findTaskById = async (id: string, userId: string): Promise<Task | n
   return mapRowToTask(row);
 };
 
-export const findAllTasks = async (userId: string, filters: TaskFilters = {}): Promise<Task[]> => {
-  let query = 'SELECT * FROM tasks WHERE userId = ?';
-  const params: any[] = [userId];
+export const findAllTasks = async (filters: TaskFilters = {}): Promise<Task[]> => {
+  let query = 'SELECT * FROM tasks WHERE 1=1';
+  const params: any[] = [];
 
   // Apply filters
   if (filters.completed !== undefined) {
@@ -112,8 +109,8 @@ export const findAllTasks = async (userId: string, filters: TaskFilters = {}): P
   return rows.map(row => mapRowToTask(row));
 };
 
-export const updateTask = async (id: string, userId: string, updateData: UpdateTaskRequest): Promise<Task | null> => {
-  const existingTask = await findTaskById(id, userId);
+export const updateTask = async (id: string, updateData: UpdateTaskRequest): Promise<Task | null> => {
+  const existingTask = await findTaskById(id);
   if (!existingTask) {
     return null;
   }
@@ -154,22 +151,21 @@ export const updateTask = async (id: string, userId: string, updateData: UpdateT
   params.push(new Date().toISOString());
   params.push(id);
 
-  const query = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ? AND userId = ?`;
-  params.push(userId);
+  const query = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
   await runQuery(query, params);
 
-  return findTaskById(id, userId);
+  return findTaskById(id);
 };
 
-export const deleteTask = async (id: string, userId: string): Promise<boolean> => {
-  const query = 'DELETE FROM tasks WHERE id = ? AND userId = ?';
-  const result = await runQuery(query, [id, userId]);
+export const deleteTask = async (id: string): Promise<boolean> => {
+  const query = 'DELETE FROM tasks WHERE id = ?';
+  const result = await runQuery(query, [id]);
   return (result.changes || 0) > 0;
 };
 
-export const getTaskCount = async (userId: string, filters: Omit<TaskFilters, 'page' | 'limit' | 'sortBy' | 'sortOrder'> = {}): Promise<number> => {
-  let query = 'SELECT COUNT(*) as count FROM tasks WHERE userId = ?';
-  const params: any[] = [userId];
+export const getTaskCount = async (filters: Omit<TaskFilters, 'page' | 'limit' | 'sortBy' | 'sortOrder'> = {}): Promise<number> => {
+  let query = 'SELECT COUNT(*) as count FROM tasks WHERE 1=1';
+  const params: any[] = [];
 
   if (filters.completed !== undefined) {
     query += ' AND completed = ?';

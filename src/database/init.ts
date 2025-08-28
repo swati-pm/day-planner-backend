@@ -15,29 +15,55 @@ const runMigrations = async (): Promise<void> => {
   try {
     console.log('Running database migrations...');
     
-    // Migration 1: Add userId column to tasks table if it doesn't exist
-    try {
-      // Check if userId column exists
-      const result = await db.execute('PRAGMA table_info(tasks)');
-      const columns = result.rows.map((row: any) => row.name);
-      
-      if (!columns.includes('userId')) {
-        console.log('Adding userId column to tasks table...');
-        
-        // Add userId column
-        await db.execute('ALTER TABLE tasks ADD COLUMN userId TEXT');
-        
-        // For existing tasks, we'll need to either:
-        // 1. Delete them (since they don't have a valid user)
-        // 2. Or assign them to a default user
-        // For now, let's delete existing tasks since this is development
-        await db.execute('DELETE FROM tasks');
-        
-        console.log('Added userId column and cleared existing tasks');
-      }
-    } catch (migrationError) {
-      console.log('Migration 1 (userId column) skipped or already applied:', migrationError);
-    }
+            // Migration 1: Remove userId column from tasks table if it exists
+        try {
+          // Check if userId column exists
+          const result = await db.execute('PRAGMA table_info(tasks)');
+          const columns = result.rows.map((row: any) => row.name);
+          
+          if (columns.includes('userId')) {
+            console.log('Removing userId column from tasks table...');
+            
+            // SQLite doesn't support DROP COLUMN directly, so we need to recreate the table
+            // First, create a backup of existing tasks without userId
+            await db.execute(`
+              CREATE TABLE tasks_backup AS 
+              SELECT id, title, description, completed, priority, dueDate, createdAt, updatedAt 
+              FROM tasks
+            `);
+            
+            // Drop the original table
+            await db.execute('DROP TABLE tasks');
+            
+            // Recreate the tasks table without userId
+            await db.execute(`
+              CREATE TABLE tasks (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT,
+                completed BOOLEAN NOT NULL DEFAULT 0,
+                priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
+                dueDate TEXT,
+                createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+              )
+            `);
+            
+            // Restore the data
+            await db.execute(`
+              INSERT INTO tasks (id, title, description, completed, priority, dueDate, createdAt, updatedAt)
+              SELECT id, title, description, completed, priority, dueDate, createdAt, updatedAt 
+              FROM tasks_backup
+            `);
+            
+            // Drop the backup table
+            await db.execute('DROP TABLE tasks_backup');
+            
+            console.log('Removed userId column from tasks table');
+          }
+        } catch (migrationError) {
+          console.log('Migration 1 (remove userId column) skipped or already applied:', migrationError);
+        }
     
     console.log('Database migrations completed');
   } catch (error) {
@@ -68,42 +94,24 @@ export const initializeDatabase = async (): Promise<void> => {
 
     // Create tables
     const createTablesQueries = [
-      // Users table
-      `CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        googleId TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        name TEXT NOT NULL,
-        picture TEXT,
-        verified BOOLEAN NOT NULL DEFAULT 0,
-        createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )`,
-      
       // Tasks table
       `CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL,
         title TEXT NOT NULL,
         description TEXT,
         completed BOOLEAN NOT NULL DEFAULT 0,
         priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
         dueDate TEXT,
         createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+        updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )`
     ];
 
     // Create indexes
     const createIndexesQueries = [
-      'CREATE INDEX IF NOT EXISTS idx_users_googleId ON users(googleId)',
-      'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
-      'CREATE INDEX IF NOT EXISTS idx_tasks_userId ON tasks(userId)',
       'CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed)',
       'CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)',
-      'CREATE INDEX IF NOT EXISTS idx_tasks_dueDate ON tasks(dueDate)',
-      'CREATE INDEX IF NOT EXISTS idx_tasks_user_completed ON tasks(userId, completed)'
+      'CREATE INDEX IF NOT EXISTS idx_tasks_dueDate ON tasks(dueDate)'
     ];
 
     // Execute table creation queries

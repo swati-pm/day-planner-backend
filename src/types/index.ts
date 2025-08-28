@@ -1,6 +1,5 @@
 export interface Task {
   id: string;
-  userId: string;
   title: string;
   description?: string;
   completed: boolean;
@@ -71,29 +70,4 @@ export interface TaskFilters extends PaginationQuery {
   dueDateTo?: string;
 }
 
-// User interfaces
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  picture?: string;
-  verified?: boolean;
-  googleId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
-export interface CreateUserRequest {
-  email: string;
-  name: string;
-  picture?: string;
-  verified?: boolean;
-  googleId?: string;
-}
-
-export interface UpdateUserRequest {
-  name?: string;
-  picture?: string;
-  verified?: boolean;
-  googleId?: string;
-}
